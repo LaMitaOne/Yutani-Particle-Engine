@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>1899.12.30 00:00:00.000.238,=C:\Users\Lenovo\Documents\Embarcadero\Studio\Projekte\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.593,C:\Users\Lenovo\Documents\Embarcadero\Studio\Projekte\Unit1.pas=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.692,C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Voronoi3D4Delphi.pas=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Yutani.VoronoiFracture.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.768,C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\uVoronoiDemoVisualizer.pas=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\uVoronoiEngine.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.593,C:\Users\Lenovo\Documents\Embarcadero\Studio\Projekte\Unit1.dfm=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit1.dfm</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.670,C:\Users\Lenovo\Documents\Embarcadero\Studio\Projekte\Project1.dproj=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Project1.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.676,C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit2.pas=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Voronoi3D4Delphi.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.668,=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit2.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.989,C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit2.pas=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\uVoronoiDemoVisualizer.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.400,=C:\Users\Lenovo\Downloads\Voronoi3D4Delphi\Unit2.pas</Transaction>
+    <Transaction>2026.10.05 14:40:45.468,C:\Users\Lenovo\Downloads\Yutani-particles\uVoronoiEngine.pas=</Transaction>
+    <Transaction>2026.10.05 14:41:24.267,=C:\Users\Lenovo\Downloads\Yutani-particles\Unit2.pas</Transaction>
+    <Transaction>2026.10.05 14:41:42.791,C:\Users\Lenovo\Downloads\Yutani-particles\uParticleEngine.pas=C:\Users\Lenovo\Downloads\Yutani-particles\Unit2.pas</Transaction>
+  </Transactions>
+</BorlandProject>
