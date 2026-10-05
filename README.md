@@ -1,2 +1,39 @@
 # Yutani-Particle-Engine
   A high-performance, threaded VCL Raylib component for 3D GPU Particles. Demonstrates how to batch render thousands of particles efficiently.
+  bbb
+Yutani-Particle-Engine v0.1    
+     
+A custom, high-performance 3D particle engine written in pure Delphi.     
+        
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LaMitaOne/Yutani-Particle-Engine)     
+       
+<img width="877" height="688" alt="Unbenannt" src="https://github.com/user-attachments/assets/693c18a8-354c-4193-9703-37852127c231" />
+     
+Instead of relying on complex GPU compute shaders or bloated external VFX engines, this project implements a highly optimized, CPU-driven particle simulation that feeds directly into Raylib's internal render batching system. It is designed to spawn and render hundreds of thousands of particles in real-time without dropping frames.      
+      
+🚀 Key Features     
+
+Matrix-Batched Rendering: Instead of issuing thousands of individual draw calls, the engine uses `rlPushMatrix`, `rlTranslatef`, and `rlScalef` in combination with `DrawMesh`. Raylib's internal RenderBatch groups these effortlessly, allowing for massive performance.     
+Custom Physics Simulation: Implements basic Euler integration for particle kinematics, including gravity, drag (air resistance), and lifespan progression.     
+Per-Particle State Lerp: Smoothly interpolates size and color (RGBA) from spawn to death, allowing for realistic fading smoke and cooling fireballs.    
+Zero-Gravity Smoke: Specific emitters (like smoke) can bypass gravity entirely, allowing them to linger and rise naturally.     
+Real-time Generation: Particles are spawned, simulated, and culled entirely at runtime without any pre-computation.     
+     
+📦 The Sample Project    
+    
+To demonstrate the engine in action, a demo application is included.    
+Start: Clicking Start Engine initializes the 3D scene.    
+The Scene: A 3D grid is rendered, acting as the stage for the particles.    
+Fog: Clicking Fog instantly spawns 5,000 low-alpha, zero-gravity gray particles spread across a wide area, simulating a dense fog bank that slowly rises and fades.    
+Expl: Clicking Expl triggers a massive explosion, spawning 20,000 red fire particles and applying outward velocity, gravity, and air resistance.    
+Performance Tuning: A TrackBar at the top allows you to dynamically change the Target FPS of the render thread (from 1 up to 5000 FPS) to test the engine's limits.    
+    
+📁 Repository Structure    
+Yutani.Render.Particles.pas - The core engine unit (can be dropped into any Raylib project).    
+uParticleEngine.pas - The threaded engine wrapper handling the QPC frame pacing and rendering loop.    
+Unit1.pas - The VCL demo form containing the UI controls.    
+    
+🛠️ Requirements    
+Delphi: Tested with Delphi 12 (should work on Delphi 10.4 and newer due to record operator syntax).    
+Raylib Pascal Bindings: Required to compile the included sample application (Raylib, rlgl, RayMath).    
+Raylib DLL: The compiled raylib.dll must be in the executable directory.    
