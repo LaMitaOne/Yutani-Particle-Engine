@@ -9,7 +9,7 @@ A custom, high-performance 3D particle engine written in pure Delphi.
        
 <img width="877" height="688" alt="Unbenannt" src="https://github.com/user-attachments/assets/693c18a8-354c-4193-9703-37852127c231" />
      
-Instead of relying on complex GPU compute shaders or bloated external VFX engines, this project implements a highly optimized, CPU-driven particle simulation that feeds directly into Raylib's internal render batching system. It is designed to spawn and render hundreds of thousands of particles in real-time without dropping frames.      
+Instead of relying on complex GPU compute shaders or bloated external VFX engines, this project implements a highly optimized, CPU-driven particle simulation that feeds directly into Raylib's internal render batching system. It is designed to spawn and render thousands of particles in real-time without dropping frames.      
       
 🚀 Key Features     
 
