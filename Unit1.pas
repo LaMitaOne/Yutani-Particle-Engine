@@ -5,15 +5,11 @@
   Dynamically constructs UI controls and embeds the threaded Raylib renderer.
    Author: Lara Miriam Tamy Reschke / LamitaOne
 *******************************************************************************}
-
 unit Unit1;
-
 interface
-
 uses
   Winapi.Windows, System.SysUtils, System.Classes, Vcl.Controls, Vcl.Forms,
   Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, uparticleengine;
-
 type
   TForm1 = class(TForm)
     procedure FormCreate(Sender: TObject);
@@ -29,7 +25,6 @@ type
     tbFPS: TTrackBar;
     lblFPS: TLabel;
     FPSTimer: TTimer;
-
     procedure OnStartClick(Sender: TObject);
     procedure OnFogClick(Sender: TObject);
     procedure OnExplClick(Sender: TObject);
@@ -38,27 +33,22 @@ type
   public
     { Public declarations }
   end;
-
 var
   Form1: TForm1;
-
 implementation
 {$R *.dfm}
-
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   Caption := 'Yutani Particle Demo';
   Self.DoubleBuffered := True;
   Width := 900;
   Height := 700;
-
   // 1. Render Panel: Hosts the Raylib child window
   pnlRender := TPanel.Create(Self);
   pnlRender.Parent := Self;
   pnlRender.Align := alClient;
   pnlRender.BevelOuter := bvNone;
   pnlRender.Caption := '';
-
   // 2. UI Panel: Contains buttons and trackbar
   pnlUI := TPanel.Create(Self);
   pnlUI.Parent := Self;
@@ -68,7 +58,6 @@ begin
   pnlUI.Caption := '';
   pnlUI.DoubleBuffered := True;
   pnlUI.BringToFront;
-
   // 3. Start Button
   btnStart := TButton.Create(Self);
   btnStart.Parent := pnlUI;
@@ -77,7 +66,6 @@ begin
   btnStart.Left := 20;
   btnStart.Top := 10;
   btnStart.OnClick := OnStartClick;
-
   // 4. Fog Button (Schmal)
   btnFog := TButton.Create(Self);
   btnFog.Parent := pnlUI;
@@ -86,7 +74,6 @@ begin
   btnFog.Left := 150;
   btnFog.Top := 10;
   btnFog.OnClick := OnFogClick;
-
   // 5. Explode Button (Schmal)
   btnExpl := TButton.Create(Self);
   btnExpl.Parent := pnlUI;
@@ -95,7 +82,6 @@ begin
   btnExpl.Left := 240;
   btnExpl.Top := 10;
   btnExpl.OnClick := OnExplClick;
-
   // 6. FPS Label
   lblFPS := TLabel.Create(Self);
   lblFPS.Parent := pnlUI;
@@ -104,7 +90,6 @@ begin
   lblFPS.Top := 15;
   lblFPS.Width := 200;
   lblFPS.Font.Size := 10;
-
   // 7. FPS TrackBar
   tbFPS := TTrackBar.Create(Self);
   tbFPS.Parent := pnlUI;
@@ -115,24 +100,20 @@ begin
   tbFPS.Left := 540;
   tbFPS.Top := 10;
   tbFPS.OnChange := OnFPSTracking;
-
   // 8. UI Update Timer
   FPSTimer := TTimer.Create(Self);
   FPSTimer.Interval := 500;
   FPSTimer.OnTimer := OnFPSTimer;
   FPSTimer.Enabled := True;
-
   // Instantiate engine and bind to Render Panel handle
   FEngine := TparticleEngine.Create(pnlRender.Handle);
   FEngine.SetDimensions(pnlRender.Width, pnlRender.Height);
 end;
-
 procedure TForm1.FormResize(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(pnlRender) then
     FEngine.SetDimensions(pnlRender.Width, pnlRender.Height);
 end;
-
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   if Assigned(FEngine) then
@@ -143,25 +124,21 @@ begin
     FEngine.Free;
   end;
 end;
-
 procedure TForm1.OnStartClick(Sender: TObject);
 begin
   if Assigned(FEngine) then
     FEngine.StartEngine;
 end;
-
 procedure TForm1.OnFogClick(Sender: TObject);
 begin
   if Assigned(FEngine) then
     FEngine.TriggerFog;
 end;
-
 procedure TForm1.OnExplClick(Sender: TObject);
 begin
   if Assigned(FEngine) then
     FEngine.TriggerExplosion;
 end;
-
 procedure TForm1.OnFPSTracking(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(tbFPS) then
@@ -169,7 +146,6 @@ begin
     FEngine.SetFPS(Round(tbFPS.Position));
   end;
 end;
-
 procedure TForm1.OnFPSTimer(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(lblFPS) then
@@ -177,5 +153,4 @@ begin
     lblFPS.Caption := Format('Target: %d | Real: %d FPS', [FEngine.TargetFPS, FEngine.RealFPS]);
   end;
 end;
-
 end.
