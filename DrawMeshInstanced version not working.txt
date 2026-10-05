@@ -1,0 +1,408 @@
+unit Yutani.Render.Particles;
+
+{==============================================================================*
+ *  Yutani Particle Engine v0.2 - True GPU Instanced (Material Bound)
+ *------------------------------------------------------------------------------
+ *  Author : Lara Miriam Tamy Reschke / LamitaOne
+ *
+ *  Description:
+ *    High-performance particle system using Pre-Allocation and GPU Instancing.
+ *    Fixes Delphi-Wrapper bugs by hardcoding layout locations in the Shader
+ *    and binding the Instanced Shader directly to the Material.
+ *    
+ *  !!! it not wants like i want, 
+ *      but maybe it wants like some of you want? anyway thought i put it too in repo
+ *==============================================================================}
+
+{$POINTERMATH ON}
+
+interface
+
+uses
+  System.SysUtils, System.Classes, System.Math, System.SyncObjs,
+  Raylib, RayMath, rlgl;
+
+type
+  PParticleInstance = ^TParticleInstance;
+  TParticleInstance = record
+    Position: TVector3;
+    Velocity: TVector3;
+    Color: TColorB;
+    StartColor: TColorB;
+    EndColor: TColorB;
+    Life: Single;
+    MaxLife: Single;
+    Size: Single;
+    StartSize: Single;
+    EndSize: Single;
+    IsSmoke: Boolean;
+  end;
+
+  TParticleEmissionType = (etExplosion, etSmoke, etSpark, etBeam);
+
+  TYutaniParticleEngine = class
+  private
+    FParticles: array of TParticleInstance;
+    FMatrices: array of TMatrix;
+    FColors: array of TColorB;
+
+    FLock: TCriticalSection;
+    FBaseMesh: TMesh;
+    FInstancedShader: TShader;
+    FMVPLoc: Integer;
+    FGravity: Single;
+    FDrag: Single;
+
+    procedure InitializeBaseMesh;
+    procedure InitializeShader;
+    procedure SetDefaults(var P: TParticleInstance);
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    function ParticleCount: Integer;
+
+    procedure Update(const dt: Single);
+    procedure Render;
+
+    procedure Emit(const Pos: TVector3; EmissionType: TParticleEmissionType;
+      Count: Integer; const BaseColor: TColorB);
+    procedure EmitExplosion(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+    procedure EmitSmoke(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+    procedure EmitSparks(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+    procedure EmitBeamSparkles(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+
+    property Gravity: Single read FGravity write FGravity;
+    property Drag: Single read FDrag write FDrag;
+  end;
+
+implementation
+
+const
+  MAX_PARTICLES = 1000000; // 1 Million cap
+
+{ ==============================================================================
+  INSTANCED GLSL SHADERS (HARDCODED LOCATIONS)
+  ============================================================================== }
+const
+  INSTANCED_VERT_SHADER: AnsiString =
+    '#version 330' + #10 +
+    'layout(location = 0) in vec3 vertexPosition;' + #10 +
+    // Location 9 and 10 are Raylib's internal standard for instancing!
+    'layout(location = 9) in mat4 instanceTransform;' + #10 +
+    'layout(location = 10) in vec4 instanceColor;' + #10 +
+    'uniform mat4 mvp;' + #10 +
+    'out vec4 vColor;' + #10 +
+    'void main()' + #10 +
+    '{' + #10 +
+    '  vColor = instanceColor;' + #10 +
+    '  vec4 worldPos = instanceTransform * vec4(vertexPosition, 1.0);' + #10 +
+    '  gl_Position = mvp * worldPos;' + #10 +
+    '}';
+
+  INSTANCED_FRAG_SHADER: AnsiString =
+    '#version 330' + #10 +
+    'in vec4 vColor;' + #10 +
+    'out vec4 finalColor;' + #10 +
+    'void main()' + #10 +
+    '{' + #10 +
+    '  if(vColor.a <= 0.01) discard;' + #10 +
+    '  finalColor = vColor;' + #10 +
+    '}';
+
+{ TYutaniParticleEngine }
+
+constructor TYutaniParticleEngine.Create;
+begin
+  inherited Create;
+  SetLength(FParticles, 0);
+  SetLength(FMatrices, MAX_PARTICLES);
+  SetLength(FColors, MAX_PARTICLES);
+
+  FLock := TCriticalSection.Create;
+  FGravity := -9.81;
+  FDrag := 0.5;
+
+  InitializeBaseMesh;
+  InitializeShader;
+end;
+
+destructor TYutaniParticleEngine.Destroy;
+begin
+  FLock.Enter;
+  try
+    SetLength(FParticles, 0);
+    SetLength(FMatrices, 0);
+    SetLength(FColors, 0);
+  finally
+    FLock.Leave;
+  end;
+  FLock.Free;
+
+  if FInstancedShader.id > 0 then
+    UnloadShader(FInstancedShader);
+  if FBaseMesh.vertices <> nil then
+    UnloadMesh(FBaseMesh);
+
+  inherited;
+end;
+
+procedure TYutaniParticleEngine.InitializeBaseMesh;
+begin
+  FBaseMesh := GenMeshSphere(0.5, 6, 4);
+  UploadMesh(@FBaseMesh, False);
+end;
+
+procedure TYutaniParticleEngine.InitializeShader;
+begin
+  // We don't need to bind anything manually anymore!
+  // The layout(location = 9) in the GLSL code forces OpenGL to use the correct slots.
+  FInstancedShader := LoadShaderFromMemory(
+    PAnsiChar(INSTANCED_VERT_SHADER),
+    PAnsiChar(INSTANCED_FRAG_SHADER)
+  );
+  FMVPLoc := GetShaderLocation(FInstancedShader, 'mvp');
+end;
+
+procedure TYutaniParticleEngine.SetDefaults(var P: TParticleInstance);
+begin
+  P.Position := Vector3Create(0, 0, 0);
+  P.Velocity := Vector3Create(0, 0, 0);
+  P.Life := 1.0;
+  P.MaxLife := 1.0;
+  P.StartColor := WHITE;
+  P.EndColor := WHITE;
+  P.Color := WHITE;
+  P.StartSize := 1.0;
+  P.EndSize := 1.0;
+  P.Size := 1.0;
+  P.IsSmoke := False;
+end;
+
+procedure TYutaniParticleEngine.Emit(const Pos: TVector3; EmissionType: TParticleEmissionType;
+  Count: Integer; const BaseColor: TColorB);
+var
+  i: Integer;
+  P: PParticleInstance;
+  RandSpeed: Single;
+  DirX, DirY, DirZ: Single;
+  OldLength, NewCount: Integer;
+begin
+  FLock.Enter;
+  try
+    OldLength := Length(FParticles);
+
+    if OldLength + Count > MAX_PARTICLES then
+      NewCount := MAX_PARTICLES - OldLength
+    else
+      NewCount := Count;
+
+    if NewCount <= 0 then Exit;
+    SetLength(FParticles, OldLength + NewCount);
+
+    for i := 0 to NewCount - 1 do
+    begin
+      P := @FParticles[OldLength + i];
+      SetDefaults(P^);
+      P^.Position := Pos;
+
+      case EmissionType of
+        etExplosion:
+          begin
+            DirX := Random * 2 - 1;
+            DirY := Random * 2 - 1;
+            DirZ := Random * 2 - 1;
+            P^.Velocity := Vector3Normalize(Vector3Create(DirX, DirY, DirZ));
+            RandSpeed := 5 + (Random * 15);
+            P^.Velocity := Vector3Scale(P^.Velocity, RandSpeed);
+            P^.MaxLife := 1.0 + (Random * 1.0);
+            P^.StartColor := BaseColor;
+            P^.EndColor := ColorAlpha(BLACK, 0);
+            P^.StartSize := 0.15;
+            P^.EndSize := 0.02;
+          end;
+        etSmoke:
+          begin
+            P^.IsSmoke := True;
+            P^.Position.x := Pos.x + ((Random * 2 - 1) * 15.0);
+            P^.Position.z := Pos.z + ((Random * 2 - 1) * 15.0);
+            P^.Position.y := Pos.y + (Random * 5.0);
+
+            P^.Velocity.x := (Random * 2 - 1) * 0.2;
+            P^.Velocity.y := 0.5 + (Random * 0.8);
+            P^.Velocity.z := (Random * 2 - 1) * 0.2;
+
+            P^.MaxLife := 8.0 + (Random * 7.0);
+            P^.StartColor := ColorAlpha(BaseColor, 30);
+            P^.EndColor := ColorAlpha(BaseColor, 0);
+            P^.StartSize := 0.1;
+            P^.EndSize := 0.25;
+          end;
+        etSpark:
+          begin
+            DirX := Random * 2 - 1;
+            DirY := Abs(Random * 2 - 1);
+            DirZ := Random * 2 - 1;
+            P^.Velocity := Vector3Normalize(Vector3Create(DirX, DirY, DirZ));
+            RandSpeed := 10 + (Random * 20);
+            P^.Velocity := Vector3Scale(P^.Velocity, RandSpeed);
+            P^.MaxLife := 0.3 + (Random * 0.5);
+            P^.StartColor := BaseColor;
+            P^.EndColor := ColorAlpha(RED, 0);
+            P^.StartSize := 0.05;
+            P^.EndSize := 0.01;
+          end;
+        etBeam:
+          begin
+            P^.Position.x := Pos.x + (Random * 2 - 1) * 1.5;
+            P^.Position.y := Pos.y + (Random * 100);
+            P^.Position.z := Pos.z + (Random * 2 - 1) * 1.5;
+            P^.Velocity.y := -1.0 - (Random * 2);
+            P^.MaxLife := 1.5 + (Random * 1.0);
+            P^.StartColor := WHITE;
+            P^.EndColor := ColorAlpha(BaseColor, 0);
+            P^.StartSize := 0.05;
+            P^.EndSize := 0.01;
+          end;
+      end;
+
+      P^.Life := P^.MaxLife;
+      P^.Color := P^.StartColor;
+      P^.Size := P^.StartSize;
+    end;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TYutaniParticleEngine.EmitExplosion(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+begin
+  Emit(Pos, etExplosion, Count, BaseColor);
+end;
+
+procedure TYutaniParticleEngine.EmitSmoke(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+begin
+  Emit(Pos, etSmoke, Count, BaseColor);
+end;
+
+procedure TYutaniParticleEngine.EmitSparks(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+begin
+  Emit(Pos, etSpark, Count, BaseColor);
+end;
+
+procedure TYutaniParticleEngine.EmitBeamSparkles(const Pos: TVector3; Count: Integer; const BaseColor: TColorB);
+begin
+  Emit(Pos, etBeam, Count, BaseColor);
+end;
+
+function TYutaniParticleEngine.ParticleCount: Integer;
+begin
+  FLock.Enter;
+  try
+    Result := Length(FParticles);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TYutaniParticleEngine.Update(const dt: Single);
+var
+  i: Integer;
+  P: PParticleInstance;
+  Progress: Single;
+  CurrentY, CurrentVel: Single;
+  DeltaColor: TColorB;
+  LastIdx: Integer;
+begin
+  FLock.Enter;
+  try
+    i := 0;
+    while i <= High(FParticles) do
+    begin
+      P := @FParticles[i];
+      P^.Life := P^.Life - dt;
+
+      if P^.Life <= 0 then
+      begin
+        LastIdx := High(FParticles);
+        if i <> LastIdx then
+          Move(FParticles[LastIdx], FParticles[i], SizeOf(TParticleInstance));
+        SetLength(FParticles, LastIdx);
+        Continue;
+      end;
+
+      if not P^.IsSmoke then
+      begin
+        CurrentY := P^.Velocity.y + (FGravity * dt);
+        P^.Velocity.y := CurrentY;
+      end;
+
+      CurrentVel := 1.0 - (FDrag * dt);
+      if CurrentVel < 0 then CurrentVel := 0;
+      P^.Velocity := Vector3Scale(P^.Velocity, CurrentVel);
+
+      P^.Position := Vector3Add(P^.Position, Vector3Scale(P^.Velocity, dt));
+
+      Progress := 1.0 - (P^.Life / P^.MaxLife);
+      if Progress > 1.0 then Progress := 1.0;
+      if Progress < 0.0 then Progress := 0.0;
+
+      P^.Size := Lerp(P^.StartSize, P^.EndSize, Progress);
+
+      DeltaColor.r := Round(Lerp(P^.StartColor.r, P^.EndColor.r, Progress));
+      DeltaColor.g := Round(Lerp(P^.StartColor.g, P^.EndColor.g, Progress));
+      DeltaColor.b := Round(Lerp(P^.StartColor.b, P^.EndColor.b, Progress));
+      DeltaColor.a := Round(Lerp(P^.StartColor.a, P^.EndColor.a, Progress));
+      P^.Color := DeltaColor;
+
+      Inc(i);
+    end;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TYutaniParticleEngine.Render;
+var
+  i: Integer;
+  P: PParticleInstance;
+  VisibleCount: Integer;
+  ScaleMat, TransMat, MatResult: TMatrix;
+  MyMaterial: TMaterial;
+begin
+  FLock.Enter;
+  try
+    VisibleCount := Length(FParticles);
+    if VisibleCount = 0 then Exit;
+
+    for i := 0 to VisibleCount - 1 do
+    begin
+      P := @FParticles[i];
+
+      // Korrekte Matrix-Reihenfolge
+      ScaleMat := MatrixScale(P^.Size, P^.Size, P^.Size);
+      TransMat := MatrixTranslate(P^.Position.x, P^.Position.y, P^.Position.z);
+      MatResult := MatrixMultiply(ScaleMat, TransMat);
+
+      FMatrices[i] := MatResult;
+      FColors[i] := P^.Color;
+    end;
+
+    rlSetBlendMode(BLEND_ALPHA);
+
+    // Standard-Material holen und unseren Shader zuweisen
+    MyMaterial := LoadMaterialDefault();
+    MyMaterial.shader := FInstancedShader;
+
+    // Raylib benötigt KEIN BeginShaderMode(), wenn der Shader im Material sitzt!
+    // DrawMeshInstanced kümmert sich intern um die MVP-Matrix und das Binden der Buffers.
+    DrawMeshInstanced(FBaseMesh, MyMaterial, @FMatrices[0], VisibleCount);
+
+    rlDrawRenderBatchActive();
+    rlSetBlendMode(BLEND_ALPHA);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+end.
