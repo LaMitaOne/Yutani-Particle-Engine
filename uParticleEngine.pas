@@ -162,9 +162,8 @@ end;
 
 procedure TParticleEngine.TriggerExplosion;
 begin
-  // Safety check: Engine might not be initialized yet if clicked too fast
   if Assigned(FParticles) then
-    FParticles.EmitExplosion(Vector3Create(0, 1, 0), 20000, RED);
+    FParticles.EmitExplosion(Vector3Create(0, 1, 0), 10000, RED);
 end;
 
 procedure TParticleEngine.TriggerFog;
