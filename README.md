@@ -1,13 +1,15 @@
 # Yutani-Particle-Engine
   A high-performance, threaded VCL Raylib component for 3D GPU Particles. Demonstrates how to batch render thousands of particles efficiently.
       
-Yutani-Particle-Engine v0.2    
+Yutani-Particle-Engine v0.3    
      
 A custom, high-performance 3D particle engine written in pure Delphi.     
         
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LaMitaOne/Yutani-Particle-Engine)     
        
-<img width="877" height="688" alt="Unbenannt" src="https://github.com/user-attachments/assets/693c18a8-354c-4193-9703-37852127c231" />
+<img width="983" height="695" alt="Unbenannt" src="https://github.com/user-attachments/assets/480ba8bb-ee24-41d3-b90d-ac62cb68f408" />
+      
+70k particles, 57fps at ryzen 4500u      
      
 Instead of relying on complex GPU compute shaders or bloated external VFX engines, this project implements a highly optimized, CPU-driven particle simulation that feeds directly into Raylib's internal render batching system. It is designed to spawn and render thousands of particles in real-time without dropping frames.      
       
