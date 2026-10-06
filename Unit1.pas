@@ -28,15 +28,18 @@ type
     pnlRender: TPanel;
     tbFPS: TTrackBar;
     lblFPS: TLabel;
-    cbRenderShape: TComboBox; // NEU: Combobox für die Render-Form
+    cbRenderShape: TComboBox;
     FPSTimer: TTimer;
+    tbMaxParticles: TTrackBar;
+    lblMaxParticles: TLabel;
 
     procedure OnStartClick(Sender: TObject);
     procedure OnFogClick(Sender: TObject);
     procedure OnExplClick(Sender: TObject);
     procedure OnFPSTracking(Sender: TObject);
     procedure OnFPSTimer(Sender: TObject);
-    procedure OnShapeChange(Sender: TObject); // NEU
+    procedure OnShapeChange(Sender: TObject);
+    procedure OnMaxParticlesChange(Sender: TObject);
   public
     { Public declarations }
   end;
@@ -51,7 +54,7 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   Caption := 'Yutani Particle Demo';
   Self.DoubleBuffered := True;
-  Width := 900;
+  Width := 1000; // Breiter gemacht für die neue Trackbar
   Height := 700;
 
   // 1. Render Panel: Hosts the Raylib child window
@@ -80,17 +83,16 @@ begin
   btnStart.Top := 10;
   btnStart.OnClick := OnStartClick;
 
-  // 4. Fog Button (Schmal)
+  // 4. Fog Button
   btnFog := TButton.Create(Self);
   btnFog.Parent := pnlUI;
   btnFog.Caption := 'Fog';
   btnFog.Width := 80;
-  btnStart.Left := 20;
   btnFog.Left := 150;
   btnFog.Top := 10;
   btnFog.OnClick := OnFogClick;
 
-  // 5. Explode Button (Schmal)
+  // 5. Explode Button
   btnExpl := TButton.Create(Self);
   btnExpl.Parent := pnlUI;
   btnExpl.Caption := 'Expl';
@@ -114,29 +116,50 @@ begin
   tbFPS.Min := 1;
   tbFPS.Max := 5000;
   tbFPS.Position := 60;
-  tbFPS.Width := 250;
+  tbFPS.Width := 120;
   tbFPS.Left := 540;
   tbFPS.Top := 10;
   tbFPS.OnChange := OnFPSTracking;
 
-  // 8. UI Update Timer
+  // 8. Render Shape Combobox
+  cbRenderShape := TComboBox.Create(Self);
+  cbRenderShape.Parent := pnlUI;
+  cbRenderShape.Style := csDropDownList;
+  cbRenderShape.Left := 680;
+  cbRenderShape.Top := 10;
+  cbRenderShape.Width := 80;
+  cbRenderShape.Items.Add('2D');
+  cbRenderShape.Items.Add('Cube');
+  cbRenderShape.Items.Add('Sphere');
+  cbRenderShape.ItemIndex := 0;
+  cbRenderShape.OnChange := OnShapeChange;
+
+  // 9. Max Particles Label (NEU)
+  lblMaxParticles := TLabel.Create(Self);
+  lblMaxParticles.Parent := pnlUI;
+  lblMaxParticles.Caption := 'Max Particles: 100000';
+  lblMaxParticles.Left := 780;
+  lblMaxParticles.Top := 3;
+  lblMaxParticles.Width := 150;
+  lblMaxParticles.Font.Size := 10;
+
+  // 10. Max Particles TrackBar (NEU)
+  tbMaxParticles := TTrackBar.Create(Self);
+  tbMaxParticles.Parent := pnlUI;
+
+  tbMaxParticles.Min := 0;       // 0 means 1 (clamped internally)
+  tbMaxParticles.Max := 200000;  // 200k is plenty to test limits
+  tbMaxParticles.Position := 100000;
+  tbMaxParticles.Width := 150;
+  tbMaxParticles.Left := 830;
+  tbMaxParticles.Top := 33;
+  tbMaxParticles.OnChange := OnMaxParticlesChange;
+
+  // 11. UI Update Timer
   FPSTimer := TTimer.Create(Self);
   FPSTimer.Interval := 500;
   FPSTimer.OnTimer := OnFPSTimer;
   FPSTimer.Enabled := True;
-
-  // 9. Render Shape Combobox (NEU)
-  cbRenderShape := TComboBox.Create(Self);
-  cbRenderShape.Parent := pnlUI;
-  cbRenderShape.Style := csDropDownList;
-  cbRenderShape.Left := 810; // Ganz rechts daneben
-  cbRenderShape.Top := 10;
-  cbRenderShape.Width := 70;
-  cbRenderShape.Items.Add('2D'); // Index 0
-  cbRenderShape.Items.Add('Cube'); // Index 1
-  cbRenderShape.Items.Add('Sphere'); // Index 2
-  cbRenderShape.ItemIndex := 0; // Default auf 2D
-  cbRenderShape.OnChange := OnShapeChange;
 
   // Instantiate engine and bind to Render Panel handle
   FEngine := TparticleEngine.Create(pnlRender.Handle);
@@ -165,8 +188,8 @@ begin
   if Assigned(FEngine) then
   begin
     FEngine.StartEngine;
-    // Default shape nach Start setzen
-    FEngine.SetRenderShape(0); // 0 = 2D Billboard
+    FEngine.SetRenderShape(0);
+    FEngine.SetMaxParticles(tbMaxParticles.Position); // Starte mit dem Trackbar-Wert
   end;
 end;
 
@@ -185,26 +208,33 @@ end;
 procedure TForm1.OnFPSTracking(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(tbFPS) then
-  begin
     FEngine.SetFPS(Round(tbFPS.Position));
-  end;
 end;
 
 procedure TForm1.OnFPSTimer(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(lblFPS) then
-  begin
     lblFPS.Caption := Format('Target: %d | Real: %d FPS', [FEngine.TargetFPS, FEngine.RealFPS]);
-  end;
 end;
 
 procedure TForm1.OnShapeChange(Sender: TObject);
 begin
   if Assigned(FEngine) and Assigned(cbRenderShape) then
-  begin
-    // Übergebe den Index der Combobox an die Engine
     FEngine.SetRenderShape(cbRenderShape.ItemIndex);
-  end;
+end;
+
+procedure TForm1.OnMaxParticlesChange(Sender: TObject);
+begin
+  // 1. Update the label IMMEDIATELY before sending the command to the thread!
+  lblMaxParticles.Caption := Format('Max Particles: %d', [tbMaxParticles.Position]);
+
+  // 2. Force the VCL to draw the label right now
+  lblMaxParticles.Repaint;
+
+  // 3. NOW send the command to the Raylib Thread
+  // Because this happens after the label is drawn, the UI won't freeze!
+  if Assigned(FEngine) then
+    FEngine.SetMaxParticles(tbMaxParticles.Position);
 end;
 
 end.

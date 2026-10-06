@@ -46,7 +46,7 @@ type
     FDrag: Single;
     FRenderShape: TParticleRenderShape;
     FCamera: TCamera3D; // Needed for 2D Billboarding
-
+    FMaxParticles: Integer;
     procedure SetDefaults(var P: TParticleInstance);
     function GetCameraForward: TVector3;
     function GetCameraRight: TVector3;
@@ -71,6 +71,7 @@ type
     property Drag: Single read FDrag write FDrag;
     property RenderShape: TParticleRenderShape read FRenderShape write FRenderShape;
     property Camera: TCamera3D read FCamera write FCamera;
+    procedure SetMaxParticles(const MaxCount: Integer);
   end;
 
 implementation
@@ -88,11 +89,24 @@ begin
   FGravity := -9.81;
   FDrag := 0.5;
   FRenderShape := rsBillboard2D; // Default to 2D Billboards (fastest & best looking)
-
+  FMaxParticles := MAX_PARTICLES;
   // Default Camera just in case
   FCamera.position := Vector3Create(10, 10, 10);
   FCamera.target := Vector3Create(0, 0, 0);
   FCamera.up := Vector3Create(0, 1, 0);
+end;
+
+procedure TYutaniParticleEngine.SetMaxParticles(const MaxCount: Integer);
+begin
+  FLock.Enter;
+  try
+    FMaxParticles := EnsureRange(MaxCount, 1, MAX_PARTICLES);
+
+    if Length(FParticles) > FMaxParticles then
+      SetLength(FParticles, FMaxParticles);
+  finally
+    FLock.Leave;
+  end;
 end;
 
 destructor TYutaniParticleEngine.Destroy;
@@ -150,8 +164,8 @@ begin
   try
     OldLength := Length(FParticles);
 
-    if OldLength + Count > MAX_PARTICLES then
-      NewCount := MAX_PARTICLES - OldLength
+   if OldLength + Count > FMaxParticles then
+      NewCount := FMaxParticles - OldLength
     else
       NewCount := Count;
 

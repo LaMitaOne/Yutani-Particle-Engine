@@ -54,6 +54,7 @@ type
     property TargetFPS: Integer read FTargetFPS;
     property Active: Boolean read FActive write SetActive;
     procedure SetRenderShape(ShapeIndex: Integer);
+    procedure SetMaxParticles(MaxCount: Integer);
   end;
 
 implementation
@@ -167,6 +168,12 @@ begin
     FTargetFPS := FPS;
 end;
 
+procedure TParticleEngine.SetMaxParticles(MaxCount: Integer);
+begin
+  if Assigned(FParticles) then
+    FParticles.SetMaxParticles(MaxCount);
+end;
+
 procedure TParticleEngine.TriggerExplosion;
 begin
   if Assigned(FParticles) then
@@ -231,9 +238,10 @@ begin
       SetWindowLong(FRaylibWnd, GWL_STYLE, WS_CHILD or WS_VISIBLE);
       SetWindowPos(FRaylibWnd, 0, 0, 0, FWidth, FHeight, SWP_NOZORDER or SWP_NOACTIVATE);
     end;
-    // CRITICAL FIX: Initialize Particle Engine HERE!
-    // The OpenGL context is now active, so VRAM uploads (GenMeshSphere) will work.
     FParticles := TYutaniParticleEngine.Create;
+    FParticles.Camera := FCamera;
+    FParticles.RenderShape := rsBillboard2D;
+    FParticles.SetMaxParticles(100000);
     Timer.Init;
     Freq := Timer.Frequency;
     if Freq <= 0 then
