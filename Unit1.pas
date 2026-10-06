@@ -1,17 +1,19 @@
 {*******************************************************************************
-  Yutani Particle Demo Form v0.3
+  Yutani Particle Demo Form
 ********************************************************************************
   VCL Wrapper demonstrating the Yutani Particle engine.
   Dynamically constructs UI controls and embeds the threaded Raylib renderer.
-   Author: Lara Miriam Tamy Reschke / LamitaOne
+
+  Author: Lara Miriam Tamy Reschke / LamitaOne
 *******************************************************************************}
+
 unit Unit1;
 
 interface
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, Vcl.Controls, Vcl.Forms,
-  Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, uparticleengine;
+  Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, raylib, uparticleengine;
 
 type
   TForm1 = class(TForm)
@@ -23,6 +25,7 @@ type
     btnStart: TButton;
     btnFog: TButton;
     btnExpl: TButton;
+    btnMat: TButton; // Materialize Button
     pnlUI: TPanel;
     pnlRender: TPanel;
     tbFPS: TTrackBar;
@@ -31,9 +34,11 @@ type
     FPSTimer: TTimer;
     tbMaxParticles: TTrackBar;
     lblMaxParticles: TLabel;
+
     procedure OnStartClick(Sender: TObject);
     procedure OnFogClick(Sender: TObject);
     procedure OnExplClick(Sender: TObject);
+    procedure OnMatClick(Sender: TObject); // Materialize Event
     procedure OnFPSTracking(Sender: TObject);
     procedure OnFPSTimer(Sender: TObject);
     procedure OnShapeChange(Sender: TObject);
@@ -52,14 +57,16 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   Caption := 'Yutani Particle Demo';
   Self.DoubleBuffered := True;
-  Width := 1000; // Breiter gemacht für die neue Trackbar
+  Width := 1000;
   Height := 700;
+
   // 1. Render Panel: Hosts the Raylib child window
   pnlRender := TPanel.Create(Self);
   pnlRender.Parent := Self;
   pnlRender.Align := alClient;
   pnlRender.BevelOuter := bvNone;
   pnlRender.Caption := '';
+
   // 2. UI Panel: Contains buttons and trackbar
   pnlUI := TPanel.Create(Self);
   pnlUI.Parent := Self;
@@ -69,6 +76,7 @@ begin
   pnlUI.Caption := '';
   pnlUI.DoubleBuffered := True;
   pnlUI.BringToFront;
+
   // 3. Start Button
   btnStart := TButton.Create(Self);
   btnStart.Parent := pnlUI;
@@ -77,6 +85,7 @@ begin
   btnStart.Left := 20;
   btnStart.Top := 10;
   btnStart.OnClick := OnStartClick;
+
   // 4. Fog Button
   btnFog := TButton.Create(Self);
   btnFog.Parent := pnlUI;
@@ -85,6 +94,7 @@ begin
   btnFog.Left := 150;
   btnFog.Top := 10;
   btnFog.OnClick := OnFogClick;
+
   // 5. Explode Button
   btnExpl := TButton.Create(Self);
   btnExpl.Parent := pnlUI;
@@ -93,6 +103,7 @@ begin
   btnExpl.Left := 240;
   btnExpl.Top := 10;
   btnExpl.OnClick := OnExplClick;
+
   // 6. FPS Label
   lblFPS := TLabel.Create(Self);
   lblFPS.Parent := pnlUI;
@@ -101,6 +112,7 @@ begin
   lblFPS.Top := 15;
   lblFPS.Width := 200;
   lblFPS.Font.Size := 10;
+
   // 7. FPS TrackBar
   tbFPS := TTrackBar.Create(Self);
   tbFPS.Parent := pnlUI;
@@ -111,6 +123,7 @@ begin
   tbFPS.Left := 540;
   tbFPS.Top := 10;
   tbFPS.OnChange := OnFPSTracking;
+
   // 8. Render Shape Combobox
   cbRenderShape := TComboBox.Create(Self);
   cbRenderShape.Parent := pnlUI;
@@ -121,9 +134,10 @@ begin
   cbRenderShape.Items.Add('2D');
   cbRenderShape.Items.Add('Cube');
   cbRenderShape.Items.Add('Sphere');
-  cbRenderShape.ItemIndex := 0;
+  cbRenderShape.ItemIndex := 1; // Default to Cube for Materialize
   cbRenderShape.OnChange := OnShapeChange;
-  // 9. Max Particles Label (NEU)
+
+  // 9. Max Particles Label
   lblMaxParticles := TLabel.Create(Self);
   lblMaxParticles.Parent := pnlUI;
   lblMaxParticles.Caption := 'Max Particles: 100000';
@@ -131,21 +145,33 @@ begin
   lblMaxParticles.Top := 3;
   lblMaxParticles.Width := 150;
   lblMaxParticles.Font.Size := 10;
-  // 10. Max Particles TrackBar (NEU)
+
+  // 10. Max Particles TrackBar
   tbMaxParticles := TTrackBar.Create(Self);
   tbMaxParticles.Parent := pnlUI;
-  tbMaxParticles.Min := 0;       // 0 means 1 (clamped internally)
-  tbMaxParticles.Max := 200000;  // 200k is plenty to test limits
+  tbMaxParticles.Min := 0;
+  tbMaxParticles.Max := 200000;
   tbMaxParticles.Position := 100000;
   tbMaxParticles.Width := 150;
   tbMaxParticles.Left := 830;
   tbMaxParticles.Top := 33;
   tbMaxParticles.OnChange := OnMaxParticlesChange;
-  // 11. UI Update Timer
+
+  // 11. Materialize Test Button (Small 10x10)
+  btnMat := TButton.Create(Self);
+  btnMat.Parent := pnlUI;
+  btnMat.Caption := 'Mat/demat';
+  btnMat.Width := 200;
+  btnMat.Left := 150;
+  btnMat.Top := 40;
+  btnMat.OnClick := OnMatClick;
+
+  // 12. UI Update Timer
   FPSTimer := TTimer.Create(Self);
   FPSTimer.Interval := 500;
   FPSTimer.OnTimer := OnFPSTimer;
   FPSTimer.Enabled := True;
+
   // Instantiate engine and bind to Render Panel handle
   FEngine := TparticleEngine.Create(pnlRender.Handle);
   FEngine.SetDimensions(pnlRender.Width, pnlRender.Height);
@@ -173,8 +199,8 @@ begin
   if Assigned(FEngine) then
   begin
     FEngine.StartEngine;
-    FEngine.SetRenderShape(0);
-    FEngine.SetMaxParticles(tbMaxParticles.Position); // Starte mit dem Trackbar-Wert
+    FEngine.SetRenderShape(cbRenderShape.ItemIndex);
+    FEngine.SetMaxParticles(tbMaxParticles.Position);
   end;
 end;
 
@@ -188,6 +214,18 @@ procedure TForm1.OnExplClick(Sender: TObject);
 begin
   if Assigned(FEngine) then
     FEngine.TriggerExplosion;
+end;
+
+procedure TForm1.OnMatClick(Sender: TObject);
+begin
+  if Assigned(FEngine) then
+  begin
+    // TOGGLE LOGIC: If the cube is solid -> Pulverize! If not -> Materialize!
+    if FEngine.SolidCubeReady then
+      FEngine.TriggerDematerializeCube(Vector3Create(0, 0.5, 0))
+    else
+      FEngine.TriggerMaterializeCube(Vector3Create(0, 0.5, 0));
+  end;
 end;
 
 procedure TForm1.OnFPSTracking(Sender: TObject);
@@ -215,10 +253,8 @@ begin
   // 2. Force the VCL to draw the label right now
   lblMaxParticles.Repaint;
   // 3. NOW send the command to the Raylib Thread
-  // Because this happens after the label is drawn, the UI won't freeze!
   if Assigned(FEngine) then
     FEngine.SetMaxParticles(tbMaxParticles.Position);
 end;
 
 end.
-
