@@ -477,13 +477,14 @@ begin
       P := @FParticles[i];
       P.Life := P.Life - dt;
 
+      // 1. Instant destruction check to prevent stale memory registration
       if P.Life <= 0 then
       begin
         LastIdx := High(FParticles);
         if i <> LastIdx then
           Move(FParticles[LastIdx], FParticles[i], SizeOf(TParticleInstance));
         SetLength(FParticles, LastIdx);
-        Continue;
+        Continue; // Skip index increment since a new particle shifted down
       end;
 
       // --- LOGIC FOR MATERIALIZATION ---
@@ -533,7 +534,7 @@ begin
         if P.SpawnTimer < P.SpawnDelay then
         begin
           P.SpawnTimer := P.SpawnTimer + dt;
-          P.Color.a := 255; // Solid
+          P.Color.a := 255; // Keep completely opaque to bypass Z-buffer glitches
         end
         else
         begin
@@ -544,7 +545,7 @@ begin
           else
             DirToTarget := Vector3Create(0, 0, 0);
 
-          // Smooth sink speed
+          // Smooth sinking speed towards bottom layer
           Sog := 3.0 * Dist;
           P.Velocity := Vector3Scale(DirToTarget, Sog);
 
@@ -552,17 +553,20 @@ begin
           begin
             P.Position := P.TargetPosition;
             P.Velocity := Vector3Create(0, 0, 0);
-            if not P.HasArrived then
-              P.HasArrived := True;
 
-            // Kill it instantly when it hits the bottom to prevent lingering
-            P.Life := 0.05;
-            P.MaxLife := 0.05;
-            P.Color.a := 0; // Invisible under the lowest layer
+            // RADICAL LEAK FIX: Force immediate termination flags
+            P.Life := -1.0;
+            P.IsDematerializing := False;
+
+            LastIdx := High(FParticles);
+            if i <> LastIdx then
+              Move(FParticles[LastIdx], FParticles[i], SizeOf(TParticleInstance));
+            SetLength(FParticles, LastIdx);
+            Continue; // Drop out instantly, skipping the trailing matrix math
           end;
         end;
       end
-      // --- STANDARD PHYSICS ---
+      // --- STANDARD EXPLOSION PHYSICS ---
       else
       begin
         if not P.IsSmoke then
@@ -588,12 +592,13 @@ begin
         P.Color := DeltaColor;
       end;
 
+      // Integrate velocity into final 3D position vector
       P.Position := Vector3Add(P.Position, Vector3Scale(P.Velocity, dt));
 
       Inc(i);
     end;
 
-    // SYNC LOGIC FÜR MATERIALIZATION:
+    // --- ISOLATED COMPONENT STATE TRIGGERS ---
     if FIsMaterializing and (FMatArrivedCount = FMatTotalCount) and (FMatArrivedCount > 0) then
     begin
       for i := 0 to High(FParticles) do
@@ -606,7 +611,6 @@ begin
       end;
     end;
 
-    // FINAL SOLID CUBE STATE LOGIC (ISOLATED):
     if FIsMaterializing and (MatAliveCount = 0) then
     begin
       FIsMaterializing := False;
@@ -623,6 +627,7 @@ begin
     FLock.Leave;
   end;
 end;
+
 
 procedure TYutaniParticleEngine.Render;
 var
