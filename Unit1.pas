@@ -1,11 +1,10 @@
 {*******************************************************************************
-  Yutani Particle Demo Form v0.2
+  Yutani Particle Demo Form v0.3
 ********************************************************************************
   VCL Wrapper demonstrating the Yutani Particle engine.
   Dynamically constructs UI controls and embeds the threaded Raylib renderer.
    Author: Lara Miriam Tamy Reschke / LamitaOne
 *******************************************************************************}
-
 unit Unit1;
 
 interface
@@ -32,7 +31,6 @@ type
     FPSTimer: TTimer;
     tbMaxParticles: TTrackBar;
     lblMaxParticles: TLabel;
-
     procedure OnStartClick(Sender: TObject);
     procedure OnFogClick(Sender: TObject);
     procedure OnExplClick(Sender: TObject);
@@ -56,14 +54,12 @@ begin
   Self.DoubleBuffered := True;
   Width := 1000; // Breiter gemacht für die neue Trackbar
   Height := 700;
-
   // 1. Render Panel: Hosts the Raylib child window
   pnlRender := TPanel.Create(Self);
   pnlRender.Parent := Self;
   pnlRender.Align := alClient;
   pnlRender.BevelOuter := bvNone;
   pnlRender.Caption := '';
-
   // 2. UI Panel: Contains buttons and trackbar
   pnlUI := TPanel.Create(Self);
   pnlUI.Parent := Self;
@@ -73,7 +69,6 @@ begin
   pnlUI.Caption := '';
   pnlUI.DoubleBuffered := True;
   pnlUI.BringToFront;
-
   // 3. Start Button
   btnStart := TButton.Create(Self);
   btnStart.Parent := pnlUI;
@@ -82,7 +77,6 @@ begin
   btnStart.Left := 20;
   btnStart.Top := 10;
   btnStart.OnClick := OnStartClick;
-
   // 4. Fog Button
   btnFog := TButton.Create(Self);
   btnFog.Parent := pnlUI;
@@ -91,7 +85,6 @@ begin
   btnFog.Left := 150;
   btnFog.Top := 10;
   btnFog.OnClick := OnFogClick;
-
   // 5. Explode Button
   btnExpl := TButton.Create(Self);
   btnExpl.Parent := pnlUI;
@@ -100,7 +93,6 @@ begin
   btnExpl.Left := 240;
   btnExpl.Top := 10;
   btnExpl.OnClick := OnExplClick;
-
   // 6. FPS Label
   lblFPS := TLabel.Create(Self);
   lblFPS.Parent := pnlUI;
@@ -109,7 +101,6 @@ begin
   lblFPS.Top := 15;
   lblFPS.Width := 200;
   lblFPS.Font.Size := 10;
-
   // 7. FPS TrackBar
   tbFPS := TTrackBar.Create(Self);
   tbFPS.Parent := pnlUI;
@@ -120,7 +111,6 @@ begin
   tbFPS.Left := 540;
   tbFPS.Top := 10;
   tbFPS.OnChange := OnFPSTracking;
-
   // 8. Render Shape Combobox
   cbRenderShape := TComboBox.Create(Self);
   cbRenderShape.Parent := pnlUI;
@@ -133,7 +123,6 @@ begin
   cbRenderShape.Items.Add('Sphere');
   cbRenderShape.ItemIndex := 0;
   cbRenderShape.OnChange := OnShapeChange;
-
   // 9. Max Particles Label (NEU)
   lblMaxParticles := TLabel.Create(Self);
   lblMaxParticles.Parent := pnlUI;
@@ -142,11 +131,9 @@ begin
   lblMaxParticles.Top := 3;
   lblMaxParticles.Width := 150;
   lblMaxParticles.Font.Size := 10;
-
   // 10. Max Particles TrackBar (NEU)
   tbMaxParticles := TTrackBar.Create(Self);
   tbMaxParticles.Parent := pnlUI;
-
   tbMaxParticles.Min := 0;       // 0 means 1 (clamped internally)
   tbMaxParticles.Max := 200000;  // 200k is plenty to test limits
   tbMaxParticles.Position := 100000;
@@ -154,13 +141,11 @@ begin
   tbMaxParticles.Left := 830;
   tbMaxParticles.Top := 33;
   tbMaxParticles.OnChange := OnMaxParticlesChange;
-
   // 11. UI Update Timer
   FPSTimer := TTimer.Create(Self);
   FPSTimer.Interval := 500;
   FPSTimer.OnTimer := OnFPSTimer;
   FPSTimer.Enabled := True;
-
   // Instantiate engine and bind to Render Panel handle
   FEngine := TparticleEngine.Create(pnlRender.Handle);
   FEngine.SetDimensions(pnlRender.Width, pnlRender.Height);
@@ -227,10 +212,8 @@ procedure TForm1.OnMaxParticlesChange(Sender: TObject);
 begin
   // 1. Update the label IMMEDIATELY before sending the command to the thread!
   lblMaxParticles.Caption := Format('Max Particles: %d', [tbMaxParticles.Position]);
-
   // 2. Force the VCL to draw the label right now
   lblMaxParticles.Repaint;
-
   // 3. NOW send the command to the Raylib Thread
   // Because this happens after the label is drawn, the UI won't freeze!
   if Assigned(FEngine) then
@@ -238,3 +221,4 @@ begin
 end;
 
 end.
+
