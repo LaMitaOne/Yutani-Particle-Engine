@@ -1,15 +1,14 @@
 unit Yutani.Render.Particles;
 
 {==============================================================================*
- *  Yutani Particle Engine v0.2 - Pre-Allocated Matrix Batched System
+ *  Yutani Particle Engine v0.2 - Pre-Allocated System (2D/3D Hybrid)
  *------------------------------------------------------------------------------
  *  Author : Lara Miriam Tamy Reschke / LamitaOne
  *
  *  Description:
  *    High-performance particle system using Pre-Allocation for spawning and
- *    Raylib's standard matrix transformations (DrawCube) for rendering.
- *    Raylib's internal RenderBatch groups these calls efficiently into a
- *    single draw call, bypassing broken Delphi DrawMeshInstanced bindings.
+ *    Raylib's standard matrix transformations for rendering.
+ *    Supports 3D Cubes, 3D Spheres, and 2D Camera-Facing Billboards.
  *==============================================================================}
 
 {$POINTERMATH ON}
@@ -37,19 +36,21 @@ type
   end;
 
   TParticleEmissionType = (etExplosion, etSmoke, etSpark, etBeam);
+  TParticleRenderShape = (rsCube, rsSphere, rsBillboard2D);
 
   TYutaniParticleEngine = class
   private
     FParticles: array of TParticleInstance;
-    FMatrices: array of TMatrix;
     FLock: TCriticalSection;
-    FBaseMesh: TMesh;
-    FMaterial: TMaterial;
     FGravity: Single;
     FDrag: Single;
+    FRenderShape: TParticleRenderShape;
+    FCamera: TCamera3D; // Needed for 2D Billboarding
 
-    procedure InitializeBaseMesh;
     procedure SetDefaults(var P: TParticleInstance);
+    function GetCameraForward: TVector3;
+    function GetCameraRight: TVector3;
+    function GetCameraUp: TVector3;
   public
     constructor Create;
     destructor Destroy; override;
@@ -68,6 +69,8 @@ type
 
     property Gravity: Single read FGravity write FGravity;
     property Drag: Single read FDrag write FDrag;
+    property RenderShape: TParticleRenderShape read FRenderShape write FRenderShape;
+    property Camera: TCamera3D read FCamera write FCamera;
   end;
 
 implementation
@@ -81,15 +84,15 @@ constructor TYutaniParticleEngine.Create;
 begin
   inherited Create;
   SetLength(FParticles, 0);
-  // Pre-allocate the matrices array to maximum capacity once
-  SetLength(FMatrices, MAX_PARTICLES);
-
   FLock := TCriticalSection.Create;
-
   FGravity := -9.81;
   FDrag := 0.5;
+  FRenderShape := rsBillboard2D; // Default to 2D Billboards (fastest & best looking)
 
-  InitializeBaseMesh;
+  // Default Camera just in case
+  FCamera.position := Vector3Create(10, 10, 10);
+  FCamera.target := Vector3Create(0, 0, 0);
+  FCamera.up := Vector3Create(0, 1, 0);
 end;
 
 destructor TYutaniParticleEngine.Destroy;
@@ -97,26 +100,11 @@ begin
   FLock.Enter;
   try
     SetLength(FParticles, 0);
-    SetLength(FMatrices, 0);
   finally
     FLock.Leave;
   end;
   FLock.Free;
-
-  if FBaseMesh.vertices <> nil then
-    UnloadMesh(FBaseMesh);
-
   inherited;
-end;
-
-procedure TYutaniParticleEngine.InitializeBaseMesh;
-begin
-  // Very low poly unit sphere (radius 0.5) for particles
-  FBaseMesh := GenMeshSphere(0.5, 6, 4);
-  UploadMesh(@FBaseMesh, False);
-
-  // Create a safe default material
-  FMaterial := LoadMaterialDefault();
 end;
 
 procedure TYutaniParticleEngine.SetDefaults(var P: TParticleInstance);
@@ -134,6 +122,21 @@ begin
   P.IsSmoke := False;
 end;
 
+function TYutaniParticleEngine.GetCameraForward: TVector3;
+begin
+  Result := Vector3Normalize(Vector3Subtract(FCamera.target, FCamera.position));
+end;
+
+function TYutaniParticleEngine.GetCameraRight: TVector3;
+begin
+  Result := Vector3Normalize(Vector3CrossProduct(GetCameraForward, FCamera.up));
+end;
+
+function TYutaniParticleEngine.GetCameraUp: TVector3;
+begin
+  Result := Vector3Normalize(Vector3CrossProduct(GetCameraRight, GetCameraForward));
+end;
+
 procedure TYutaniParticleEngine.Emit(const Pos: TVector3; EmissionType: TParticleEmissionType;
   Count: Integer; const BaseColor: TColorB);
 var
@@ -147,21 +150,16 @@ begin
   try
     OldLength := Length(FParticles);
 
-    // --- Step A: Pre-allocation ---
-    // Prevent array from being too large
     if OldLength + Count > MAX_PARTICLES then
       NewCount := MAX_PARTICLES - OldLength
     else
       NewCount := Count;
 
     if NewCount <= 0 then Exit;
-
-    // Resize the array ONCE for the whole batch
     SetLength(FParticles, OldLength + NewCount);
 
     for i := 0 to NewCount - 1 do
     begin
-      // Directly access the pre-allocated memory via pointer
       P := @FParticles[OldLength + i];
       SetDefaults(P^);
       P^.Position := Pos;
@@ -179,7 +177,7 @@ begin
             P^.StartColor := BaseColor;
             P^.EndColor := ColorAlpha(BLACK, 0);
             P^.StartSize := 0.15;
-            P^.EndSize := 0.05;
+            P^.EndSize := 0.02;
           end;
         etSmoke:
           begin
@@ -193,10 +191,8 @@ begin
             P^.Velocity.z := (Random * 2 - 1) * 0.2;
 
             P^.MaxLife := 8.0 + (Random * 7.0);
-
             P^.StartColor := ColorAlpha(BaseColor, 30);
             P^.EndColor := ColorAlpha(BaseColor, 0);
-
             P^.StartSize := 0.1;
             P^.EndSize := 0.25;
           end;
@@ -282,7 +278,6 @@ begin
     while i <= High(FParticles) do
     begin
       P := @FParticles[i];
-
       P^.Life := P^.Life - dt;
 
       if P^.Life <= 0 then
@@ -290,7 +285,6 @@ begin
         LastIdx := High(FParticles);
         if i <> LastIdx then
           Move(FParticles[LastIdx], FParticles[i], SizeOf(TParticleInstance));
-
         SetLength(FParticles, LastIdx);
         Continue;
       end;
@@ -330,7 +324,9 @@ procedure TYutaniParticleEngine.Render;
 var
   i: Integer;
   P: PParticleInstance;
-  ZeroPos: TVector3;
+  CamRight, CamUp: TVector3;
+  Vertices: array[0..3] of TVector3;
+  HalfSize: Single;
 begin
   FLock.Enter;
   try
@@ -338,26 +334,56 @@ begin
 
     rlSetBlendMode(BLEND_ALPHA);
 
-    // Prepare a zero vector, as we handle the position via rlTranslatef
-    ZeroPos := Vector3Create(0, 0, 0);
+    case FRenderShape of
+      rsCube:
+        begin
+          for i := 0 to High(FParticles) do
+          begin
+            P := @FParticles[i];
+            DrawCube(P^.Position, P^.Size * 0.5, P^.Size * 0.5, P^.Size * 0.5, P^.Color);
+          end;
+        end;
+      rsSphere:
+        begin
+          for i := 0 to High(FParticles) do
+          begin
+            P := @FParticles[i];
+            DrawSphere(P^.Position, P^.Size * 0.5, P^.Color);
+          end;
+        end;
+      rsBillboard2D:
+        begin
+          // Calculate Camera Basis Vectors once
+          CamRight := GetCameraRight;
+          CamUp := GetCameraUp;
 
-    for i := 0 to High(FParticles) do
-    begin
-      P := @FParticles[i];
+          for i := 0 to High(FParticles) do
+          begin
+            P := @FParticles[i];
+            HalfSize := P^.Size * 0.5;
 
-      rlPushMatrix();
+            // Calculate the 4 corners of the 2D Quad facing the camera
+            Vertices[0].x := P^.Position.x + (CamRight.x * -HalfSize) + (CamUp.x * HalfSize);
+            Vertices[0].y := P^.Position.y + (CamRight.y * -HalfSize) + (CamUp.y * HalfSize);
+            Vertices[0].z := P^.Position.z + (CamRight.z * -HalfSize) + (CamUp.z * HalfSize);
 
-      // 1. Translate matrix to the particle's world position
-      rlTranslatef(P^.Position.x, P^.Position.y, P^.Position.z);
+            Vertices[1].x := P^.Position.x + (CamRight.x * HalfSize) + (CamUp.x * HalfSize);
+            Vertices[1].y := P^.Position.y + (CamRight.y * HalfSize) + (CamUp.y * HalfSize);
+            Vertices[1].z := P^.Position.z + (CamRight.z * HalfSize) + (CamUp.z * HalfSize);
 
-      // 2. Scale matrix based on particle size
-      rlScalef(P^.Size, P^.Size, P^.Size);
+            Vertices[2].x := P^.Position.x + (CamRight.x * HalfSize) + (CamUp.x * -HalfSize);
+            Vertices[2].y := P^.Position.y + (CamRight.y * HalfSize) + (CamUp.y * -HalfSize);
+            Vertices[2].z := P^.Position.z + (CamRight.z * HalfSize) + (CamUp.z * -HalfSize);
 
-      // 3. Draw exactly at the local origin (0,0,0) of the matrix.
-      // The base size of the cube is 0.5, as the scaling is fully handled by rlScalef!
-      DrawCube(ZeroPos, 0.5, 0.5, 0.5, P^.Color);
+            Vertices[3].x := P^.Position.x + (CamRight.x * -HalfSize) + (CamUp.x * -HalfSize);
+            Vertices[3].y := P^.Position.y + (CamRight.y * -HalfSize) + (CamUp.y * -HalfSize);
+            Vertices[3].z := P^.Position.z + (CamRight.z * -HalfSize) + (CamUp.z * -HalfSize);
 
-      rlPopMatrix();
+            // Draw the Quad (Triangle 1 and Triangle 2)
+            DrawTriangle3D(Vertices[0], Vertices[1], Vertices[2], P^.Color);
+            DrawTriangle3D(Vertices[0], Vertices[2], Vertices[3], P^.Color);
+          end;
+        end;
     end;
 
     rlDrawRenderBatchActive();
