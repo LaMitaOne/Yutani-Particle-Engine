@@ -36,7 +36,7 @@ Start: Clicking Start Engine initializes the 3D scene.
 The Scene: A 3D grid is rendered, acting as the stage for the particles.     
 Fog: Clicking Fog instantly spawns 5,000 low-alpha, zero-gravity gray particles spread across a wide area, simulating a dense fog bank that slowly rises and fades.     
 Expl: Clicking Expl triggers a massive explosion, spawning 10,000 red fire particles and applying outward velocity, gravity, and air resistance.     
-Materialize/Dematerialize (Small 10x10 Button): Toggles the volumetric materialization effect. Clicking it materializes a 1x1x1 solid cube out of 1,000 voxel particles. Clicking it again dematerializes the cube layer-by-layer back into nothingness.     
+Materialize/Dematerialize: Toggles the volumetric materialization effect. Clicking it materializes a 1x1x1 solid cube out of 1,000 voxel particles. Clicking it again dematerializes the cube layer-by-layer back into nothingness.     
 Performance Tuning: A TrackBar at the top allows you to dynamically change the Target FPS of the render thread (from 1 up to 5000 FPS) to test the engine's limits.          
     
 📁 Repository Structure    
