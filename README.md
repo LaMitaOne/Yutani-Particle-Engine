@@ -27,7 +27,8 @@ Volumetric Materialization & Pulverization (Sci-Fi Beaming): Spawns a 10x10x10 v
        
 🧠 Hardware-Level Z-Buffer Optimization (The "Sinking" Dissolve)     
           
-In traditional 3D engines, removing upper voxel layers instantly creates a depth-buffer conflict (Ghosting/Flickering) because the hardware's rasterizer requires nanoseconds to register the geometry beneath the void. To completely circumvent this Z-Buffer ordering glitch, this engine implements a "Sinking Layer" mechanic: Upper cubes do NOT get destroyed in place. Instead, they physically descend layer-by-layer down to the lowest baseline (Y=0) of the object while maintaining 100% opacity. This keeps the screen space completely dense and opaque at all times, preventing any transparency artifact, Z-Fighting, or floor bleeding.               
+In traditional 3D engines, removing upper voxel layers instantly creates a depth-buffer conflict (Ghosting/Flickering) because the hardware's rasterizer requires nanoseconds to register the geometry beneath the void. To completely circumvent this Z-Buffer ordering glitch, this engine implements a "Sinking Layer" mechanic: Upper cubes do NOT get destroyed in place. Instead, they physically descend layer-by-layer down to the lowest baseline (Y=0) of the object while maintaining 100% opacity. This keeps the screen space completely dense and opaque at all times, preventing any transparency artifact, Z-Fighting, or floor bleeding.                  
+   
 📦 The Sample Project    
     
 To demonstrate the engine in action, a demo application is included.      
