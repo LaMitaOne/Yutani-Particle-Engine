@@ -6,7 +6,9 @@ Yutani-Particle-Engine v0.4
 A custom, high-performance 3D particle engine written in pure Delphi.     
         
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LaMitaOne/Yutani-Particle-Engine)     
-        
+    
+Sample video: https://youtu.be/-Wm1roxpJVg     
+         
 <img width="983" height="692" alt="Unbenannt" src="https://github.com/user-attachments/assets/20eff771-2095-436b-9801-1608a3ca217f" />
        
 76k particles, 53fps at ryzen 4500u      
@@ -43,6 +45,8 @@ Performance Tuning: A TrackBar at the top allows you to dynamically change the T
 Yutani.Render.Particles.pas - The core engine unit (can be dropped into any Raylib project).    
 uParticleEngine.pas - The threaded engine wrapper handling the QPC frame pacing and rendering loop.    
 Unit1.pas - The VCL demo form containing the UI controls.    
+
+Part of https://github.com/LaMitaOne/Yutani-Building-better-worlds     
     
 🛠️ Requirements    
 Delphi: Tested with Delphi 12 (should work on Delphi 10.4 and newer due to record operator syntax).    
